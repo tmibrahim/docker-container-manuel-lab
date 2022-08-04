@@ -1,0 +1,167 @@
+Linux Machine Spec.
+ibrahim@docker-server1:~$ uname -a
+Linux docker-server1 5.15.0-1014-azure #17~20.04.1-Ubuntu SMP Thu Jun 23 20:01:51 UTC 2022
+ibrahim@docker-server1:~$ sudo lshw -short
+H/W path      Device      Class          Description
+====================================================
+                          system         Virtual Machine (None)
+/0                        bus            Virtual Machine
+/0/0                      memory         1MiB BIOS
+/0/4                      processor      Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz
+/0/6                      memory         1GiB System Memory
+/0/6/0                    memory         1GiB
+/0/1                      communication  PnP device PNP0501
+/0/2                      communication  PnP device PNP0501
+/0/3                      system         PnP device PNP0b00
+/0/5          scsi0       storage
+/0/5/0.0.0    /dev/sda    disk           68GB Virtual Disk
+/0/5/0.0.0/1  /dev/sda1   volume         63GiB EXT4 volume
+/0/5/0.0.0/e  /dev/sda14  volume         4095KiB BIOS Boot partition
+/0/5/0.0.0/f  /dev/sda15  volume         105MiB Windows FAT volume
+/0/5/0.0.1    /dev/sdb    disk           4294MB Virtual Disk
+/0/5/0.0.1/1  /dev/sdb1   volume         4094MiB EXT4 volume
+/0/5/0.0.2    /dev/cdrom  disk           Virtual DVD-ROM
+/0/5/0.0.2/0  /dev/cdrom  disk
+/1            eth0        network        Ethernet interface
+*************************************************************************
+
+Step 1: Install Docker in Ubuntu Linux machine
+
+sudo apt-get update
+sudo apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg-agent \
+    software-properties-common
+
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+
+sudo apt-get update
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io
+
+
+************************************************************************
+Step 2: Download sample Docker image
+
+docker pull httpd
+
+run container independent mode
+
+docker run -dit httpd
+
+Run container and expose to internet
+
+docker run -dit --name ibrahimtest-web -p 8087:80 -v /var/tmp/:/usr/local/apache2/htdocs/ httpd:2.4
+
+Output should be like below:
+root@docker-server1:/home/ibrahim# docker ps -a
+CONTAINER ID   IMAGE       COMMAND              CREATED          STATUS          PORTS                                   NAMES
+60c0d89b187b   httpd:2.4   "httpd-foreground"   48 seconds ago   Up 47 seconds   0.0.0.0:8087->80/tcp, :::8087->80/tcp   ibrahimtest-web
+f11e42617785   httpd       "httpd-foreground"   5 minutes ago    Up 5 minutes    80/tcp                                  serene_galois
+
+
+Access the application from internet
+
+Open browser access http://<machine public IP>:8087/
+
+echo "Well done. You are now know how to do it!!!" > /var/tmp/index.html
+
+Open browser access http://<machine public IP>:8087/
+
+************************************************************************
+
+Step 3: Create new Docker file
+type vim Dockerfile go to vim editor page
+in vim editor page paste following lines
+
+FROM ubuntu:latest
+RUN apt update
+RUN apt install -y nginx
+ADD index.html /usr/share/nginx/html/index.html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+
+after paste, type :wq! will save the above into file called Dockerfile 
+
+make sure you have some dummy index.html file in the same directory.(echo "You are now developing.Keep going" > index.html)
+
+execute the below command
+
+Use Docker file to create custom image
+
+docker build  .
+
+Check for images
+
+docker images
+
+Output should be like below:
+
+root@docker-server1:/home/ibrahim# docker images
+REPOSITORY   TAG       IMAGE ID       CREATED              SIZE
+<none>       <none>    de80a1985529   About a minute ago   169MB
+httpd        2.4       f2a976f932ec   2 days ago           145MB
+httpd        latest    f2a976f932ec   2 days ago           145MB
+ubuntu       latest    df5de72bdb3b   2 days ago           77.8MB
+
+Create new Docker repo in hub.docker.com
+
+Note the new Docker repo name
+
+Convert the custom image to match new Docker repo compatibility.
+
+docker tag <image id> itmrnetworks/ibrwebapp:latest
+
+root@docker-server1:/home/ibrahim# docker tag de80a1985529 itmrnetworks/ibrwebapp:v0.1
+
+root@docker-server1:/home/ibrahim# docker images
+REPOSITORY               TAG       IMAGE ID       CREATED          SIZE
+itmrnetworks/ibrwebapp   v0.1      de80a1985529   13 minutes ago   169MB
+httpd                    2.4       f2a976f932ec   2 days ago       145MB
+httpd                    latest    f2a976f932ec   2 days ago       145MB
+ubuntu                   latest    df5de72bdb3b   2 days ago       77.8MB
+
+First, to login with docker hub credentials
+
+docker login
+
+Type docker hub credentials
+
+Push custom Docker image to Docker image repository
+
+docker push itmrnetworks/ibrwebapp:v0.1
+
+now go to hub.docker.com and go to your newly created respository.
+
+Check the pushed status. Tag will change to v0.1 
+
+Change the same image tag to v0.2
+
+root@docker-server1:/home/ibrahim# docker tag de80a1985529 itmrnetworks/ibrwebapp:v0.2
+
+root@docker-server1:/home/ibrahim# docker images
+REPOSITORY               TAG       IMAGE ID       CREATED          SIZE
+itmrnetworks/ibrwebapp   v0.1      de80a1985529   54 minutes ago   169MB
+itmrnetworks/ibrwebapp   v0.2      de80a1985529   54 minutes ago   169MB
+httpd                    2.4       f2a976f932ec   2 days ago       145MB
+httpd                    latest    f2a976f932ec   2 days ago       145MB
+ubuntu                   latest    df5de72bdb3b   2 days ago       77.8MB
+
+Push the retagged Docker image to Docker image repository
+
+root@docker-server1:/home/ibrahim# docker push itmrnetworks/ibrwebapp:v0.2
+
+Now go to hub.docker.com and go to your respository
+
+Check the pushed status. Tag changed to v0.2
+
+Now if you have a diffrent linux machine you can try docker pull itmrnetworks/ibrwebapp:v0.2
+
+Beacause it's made available in public
